@@ -2,8 +2,8 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="min-app-version" content="3">
-<meta name="ui-version" content="2026.11.19-1">
+<meta name="min-app-version" content="4">
+<meta name="ui-version" content="2026.11.19-3">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>EK's Remote</title>
 <style>
@@ -177,6 +177,22 @@
   .updbar .x { width:36px; height:36px; border-radius:50%; background:transparent; box-shadow:none; color:var(--muted); }
   .updbar .x svg { width:18px; height:18px; }
   .ver { text-align:center; font-size:11.5px; color:var(--muted); margin:14px 0 4px; }
+  /* swipe-pad photo (from the phone's gallery, stored only on the phone): cropped to fill, never stretched */
+  .has-photo .touchpad::before { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background:var(--padphoto) 50% 38% / cover no-repeat; opacity:var(--bgop, .20); }
+  .has-photo .touchpad .hint { z-index:1; }
+  /* faint green glow just outside the pad when a photo is set */
+  /* glow just outside the pad, in the photo's main colour (--pg = "r,g,b", worked out on the phone) */
+  :root { --pg:70,165,70; }
+  .has-photo .touchpad { box-shadow:var(--inset), 0 0 0 1px rgba(var(--pg),.26), 0 0 34px 6px rgba(var(--pg),.22), 0 0 80px 18px rgba(var(--pg),.10); }
+  [data-theme="light"] .has-photo .touchpad { box-shadow:var(--inset), 0 0 0 1px rgba(var(--pg),.26), 0 0 30px 6px rgba(var(--pg),.18), 0 0 70px 16px rgba(var(--pg),.08); }
+  .has-photo .touchpad.touching { box-shadow:var(--inset), 0 0 0 2px color-mix(in srgb, var(--glow) 40%, transparent), 0 0 34px color-mix(in srgb, var(--glow) 30%, transparent), 0 0 80px 18px rgba(var(--pg),.10); }
+  .photorow { display:flex; align-items:center; gap:12px; padding:12px 2px; }
+  .photorow .thumb { width:52px; height:52px; border-radius:16px; flex:none; background:var(--bg) 50% 38% / cover no-repeat; box-shadow:inset 0 0 0 1px var(--line); display:flex; align-items:center; justify-content:center; color:var(--faint); }
+  .photorow .thumb svg { width:22px; height:22px; }
+  .photorow .grow { flex:1; min-width:0; }
+  .photorow button { height:38px; padding:0 14px; border-radius:999px; font-size:13px; }
+  .slider { width:100%; accent-color:var(--glow); margin:6px 0 2px; }
   .faq { display:flex; flex-direction:column; gap:8px; overflow:auto; max-height:62dvh; margin-top:10px; }
   .faq details { background:var(--pad); border-radius:20px; padding:0 16px; }
   .faq summary { list-style:none; cursor:pointer; padding:14px 0; font-weight:600; font-size:15px; display:flex; justify-content:space-between; gap:10px; }
@@ -282,6 +298,16 @@
   <div class="group">
     <div class="row"><div>Vibrate on touch<small>Buttons and swipes</small></div><button class="switch" id="hapticSw" aria-label="Vibrate on touch"></button></div>
     <div class="row"><div>Theme</div><div class="seg" id="themeSeg"><button data-v="system">Auto</button><button data-v="dark">Dark</button><button data-v="light">Light</button></div></div>
+    <div class="photorow">
+      <div class="thumb" id="photoThumb"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg></div>
+      <div class="grow">Swipe pad photo<small style="display:block;color:var(--muted);font-size:12px;margin-top:2px">From your gallery. Stays on this phone only.</small></div>
+      <button id="photoPick">Choose</button>
+    </div>
+    <div class="field" id="photoMore" style="display:none">
+      <label for="photoStrength">Photo strength <span id="photoPct">20%</span></label>
+      <input type="range" class="slider" id="photoStrength" min="5" max="60" step="1" value="20">
+      <button id="photoRemove" style="height:36px;padding:0 14px;border-radius:999px;font-size:13px;margin-top:6px">Remove photo</button>
+    </div>
     <div class="row"><div>Wake TV when app opens<small>Turns the TV on when you open the remote</small></div><button class="switch" id="wakeSw" aria-label="Wake TV when app opens"></button></div>
     <div class="field"><label for="macIn">TV Wi-Fi MAC address (optional)<br>Lets the remote wake the TV from deep standby. Find it in the TV's Settings › Network › About.</label><input id="macIn" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off" autocapitalize="characters"></div>
   </div>
@@ -306,6 +332,7 @@
     <details><summary>How do I add the home screen widget?</summary><p>Long-press an empty spot on your home screen, tap Widgets, find EK's Remote, and drag it out. It has power, volume down, mute and volume up. Pair in the app first.</p></details>
     <details><summary>How do I type or search?</summary><p>Select a search box on the TV, then tap the keyboard button. Whatever you type appears on the TV straight away (capitals, symbols, corrections and all), and what's already in the TV's box shows in yours. Tap ↵ or your keyboard's search key to run the search. Close the box (✕ or Back) to get the TV's own keyboard back. The mic button opens the TV's search screen; voice input itself isn't supported.</p></details>
     <details><summary>The TV says to use the keyboard on my phone</summary><p>That's normal while the type box is open: the TV hands its keyboard to your phone. Close the type box and the TV's own keyboard comes back.</p></details>
+    <details><summary>How do I put a photo on the swipe pad?</summary><p>Open ⚙ › Remote › Swipe pad photo › Choose, and pick a photo from your gallery. It's cropped to fill the pad (never stretched) and kept only on this phone; it isn't uploaded anywhere. Use Photo strength to make it fainter or stronger, or Remove photo to go back to plain.</p></details>
     <details><summary>How do updates work?</summary><p>Changes to how the remote looks arrive by themselves the next time you open the app. When a new app version is out, a banner offers "Update": tap it and confirm Android's install screen. Your pairing and settings stay.</p></details>
     <details><summary>An app button opens the wrong thing</summary><p>App buttons ask the TV to open that service's link. If the app isn't installed on the TV, or doesn't accept links, nothing happens or a browser opens. Install the app on the TV first.</p></details>
     <details><summary>How do I turn off vibration or change the theme?</summary><p>Open ⚙ › Remote. Vibrate on touch, and Theme (Auto, Dark or Light) are there.</p></details>
@@ -486,6 +513,57 @@ $('#hapticSw').addEventListener('click', () => { haptics = !haptics; store.set('
 $('#wakeSw').addEventListener('click', () => sw($('#wakeSw'), !$('#wakeSw').classList.contains('on')));
 document.querySelectorAll('#themeSeg button').forEach(b => b.addEventListener('click', () => { theme = b.dataset.v; store.set('theme', theme); applyTheme(); }));
 $('#settingsBtn').addEventListener('click', openSetup);
+// ---- swipe-pad photo ----
+// Main colour of the photo: the most common clear hue (ignores near-black, near-white and grey areas)
+function photoColour(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const N = 64, cv = document.createElement('canvas'); cv.width = N; cv.height = N;
+        const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, N, N);
+        const d = cx.getImageData(0, 0, N, N).data, bins = [];
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i+1], b = d[i+2], mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx + mn) / 510, sat = mx ? (mx - mn) / mx : 0;
+          if (l < .12 || l > .92 || sat < .22) continue;
+          let h = mx === mn ? 0 : mx === r ? ((g - b) / (mx - mn)) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+          const k = Math.floor(((h * 60 + 360) % 360) / 20), w = sat;
+          const bin = bins[k] || (bins[k] = { w:0, r:0, g:0, b:0 });
+          bin.w += w; bin.r += r * w; bin.g += g * w; bin.b += b * w;
+        }
+        const best = bins.filter(Boolean).sort((a, b) => b.w - a.w)[0];
+        if (!best) return resolve('120,150,190'); // black-and-white photo: soft neutral blue
+        let r = best.r / best.w, g = best.g / best.w, b = best.b / best.w;
+        // brighten a little so the glow reads on dark backgrounds
+        const m = Math.max(r, g, b), f = m < 170 ? 170 / m : 1;
+        resolve([r, g, b].map(v => Math.min(255, Math.round(v * f))).join(','));
+      } catch (e) { resolve('70,165,70'); }
+    };
+    img.onerror = () => resolve('70,165,70');
+    img.src = url;
+  });
+}
+let photoVer = -1, lastPhotoErr = null;
+function applyStrength(v) { document.documentElement.style.setProperty('--bgop', (v / 100).toFixed(2)); $('#photoPct').textContent = v + '%'; }
+applyStrength(+store.get('photoStrength', '20')); $('#photoStrength').value = store.get('photoStrength', '20');
+$('#photoStrength').addEventListener('input', e => { store.set('photoStrength', e.target.value); applyStrength(+e.target.value); });
+$('#photoPick').addEventListener('click', () => { buzz(); api('pickPhoto', {}); });
+$('#photoRemove').addEventListener('click', async () => { buzz(); await api('removePhoto', {}); toast('Photo removed'); });
+async function syncPhoto(s) {
+  if (s.photoError && s.photoError !== lastPhotoErr) toast(s.photoError, true);
+  lastPhotoErr = s.photoError;
+  if (s.photoVersion === undefined || s.photoVersion === photoVer) return;
+  photoVer = s.photoVersion;
+  let url = '';
+  if (s.hasPhoto) { const r = await api('getPhoto', {}); if (r.ok && r.data) url = r.data; }
+  document.body.classList.toggle('has-photo', !!url);
+  if (url) photoColour(url).then(c => document.documentElement.style.setProperty('--pg', c));
+  document.documentElement.style.setProperty('--padphoto', url ? 'url("' + url + '")' : 'none');
+  $('#photoThumb').style.backgroundImage = url ? 'url("' + url + '")' : '';
+  $('#photoThumb').firstElementChild.style.display = url ? 'none' : '';
+  $('#photoPick').textContent = url ? 'Change' : 'Choose';
+  $('#photoMore').style.display = url ? '' : 'none';
+}
 let updDismissed = false;
 $('#updX').addEventListener('click', () => { buzz(); updDismissed = true; $('#updBar').classList.remove('show'); });
 $('#updGo').addEventListener('click', async () => { buzz(); const r = await api('installUpdate', {}); if (!r.ok) toast(r.error, true); else if (r.message) toast(r.message); });
@@ -576,6 +654,7 @@ async function poll() {
     if (setup.open) renderFound(s);
     syncTypeBox(s);
     syncUpdate(s);
+    syncPhoto(s);
     if (s.status === 'awaiting_code' && !pairDlg.open && !setup.open && !pairDismissed) { pairDlg.showModal(); $('#codeIn').focus(); }
     if (s.status !== 'awaiting_code' && pairDlg.open) pairDlg.close();
     if (s.error && s.error !== lastErr) toast(s.error, true);

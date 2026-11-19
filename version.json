@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2",
+  "versionCode": 4,
+  "versionName": "1.3",
   "apk": "EKs-Remote.apk",
-  "notes": "Live two-way typing, working Enter, TV keyboard comes back when you close the type box, online updates."
+  "notes": "Swipe pad photo from your gallery (stays on your phone) with a glow in the photo's colour."
 }

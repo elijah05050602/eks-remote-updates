@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="min-app-version" content="3">
+<meta name="ui-version" content="2026.11.19-1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>EK's Remote</title>
+<style>
+  :root, [data-theme="dark"] {
+    --bg:#18181b; --pad:#27272b; --pad-hi:#2e2e33; --key:#303035; --key-active:#45454c; --sheet:#222226; --line:#3a3a40;
+    --text:#f4f4f6; --muted:#9a9aa3; --faint:#55555c; --green:#34d27a; --red:#f0605a; --blue:#4a86c0; --accent:#3d8bfd;
+    --shadow:0 6px 18px rgba(0,0,0,.28); --inset:inset 0 1px 0 rgba(255,255,255,.05);
+    --glow:#5aa2ff; --press:rgba(90,162,255,.22); --key-grad:linear-gradient(160deg,#3a3a41,#2a2a2f); --pad-grad:linear-gradient(165deg,#2c2c33 0%,#232328 60%,#1f2230 100%);
+    --bg-grad:radial-gradient(120% 60% at 50% -10%, rgba(70,110,220,.20), transparent 60%), radial-gradient(90% 50% at 50% 115%, rgba(60,90,200,.14), transparent 60%);
+  }
+  [data-theme="light"] {
+    --bg:#f1f1f5; --pad:#e4e4ea; --pad-hi:#dcdce3; --key:#ffffff; --key-active:#d5d5dd; --sheet:#fafafc; --line:#d6d6de;
+    --text:#1b1b1f; --muted:#6c6c76; --faint:#a6a6b0; --green:#1fae5f; --red:#e0483f; --blue:#4a86c0; --accent:#2f7bf0;
+    --shadow:0 6px 16px rgba(30,30,60,.10); --inset:inset 0 1px 0 rgba(255,255,255,.8);
+    --glow:#3d8bfd; --press:rgba(61,139,253,.16); --key-grad:linear-gradient(160deg,#ffffff,#f0f0f6); --pad-grad:linear-gradient(165deg,#ececf2 0%,#e2e2ea 60%,#dde3f2 100%);
+    --bg-grad:radial-gradient(120% 60% at 50% -10%, rgba(90,140,255,.16), transparent 60%), radial-gradient(90% 50% at 50% 115%, rgba(90,140,255,.10), transparent 60%);
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
+  html,body { margin:0; background:var(--bg-grad), var(--bg); background-attachment:fixed; color:var(--text); font-family:system-ui,-apple-system,Roboto,sans-serif; height:100%; transition:background .25s,color .25s; }
+  body { display:flex; justify-content:center; }
+  .remote { width:100%; max-width:440px; height:100dvh; min-height:0; max-height:900px; padding:12px 14px 18px; display:flex; flex-direction:column; justify-content:space-between; gap:12px; }
+  button { font:inherit; color:var(--text); border:0; background:var(--key); cursor:pointer; display:flex; align-items:center; justify-content:center;
+           transition:transform .12s cubic-bezier(.3,.7,.4,1), background .15s; box-shadow:var(--inset); }
+  button:active, button.pressed { transform:scale(.93); background:var(--key-active); }
+  .grid button, .numgrid button, .actions button:not(.primary), .found button { background:var(--key-grad); }
+  .grid button:active, .grid button.pressed, .grid button.flash, .numgrid button:active, .numgrid button.flash,
+  .pill button.flash, .pill button.pressed, .ibtn.flash, .actions button:not(.primary):active {
+    background:linear-gradient(160deg, color-mix(in srgb, var(--glow) 30%, var(--key)), color-mix(in srgb, var(--glow) 16%, var(--key))) !important;
+    box-shadow:0 0 0 2px color-mix(in srgb, var(--glow) 45%, transparent), 0 0 22px color-mix(in srgb, var(--glow) 45%, transparent) !important;
+    color:var(--text);
+  }
+  .tvname.flash, .found button.flash, .primary.flash, .x.flash, .row.flash { box-shadow:0 0 0 2px color-mix(in srgb, var(--glow) 45%, transparent), 0 0 22px color-mix(in srgb, var(--glow) 45%, transparent) !important; }
+  .tvname.flash { background:color-mix(in srgb, var(--glow) 14%, transparent); }
+  .app.flash .tile { box-shadow:0 0 0 3px color-mix(in srgb, var(--glow) 55%, transparent), 0 0 26px color-mix(in srgb, var(--glow) 50%, transparent); transform:scale(.94); }
+  .tile { transition:transform .12s, box-shadow .2s; }
+  svg { width:26px; height:26px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+
+  /* Top bar */
+  header { display:flex; align-items:center; justify-content:space-between; padding:4px 2px 0; }
+  .ibtn { background:transparent; box-shadow:none; width:50px; height:50px; border-radius:50%; }
+  .ibtn svg { width:28px; height:28px; }
+  .power { background:var(--key-grad); color:var(--green); box-shadow:0 0 18px color-mix(in srgb, var(--green) 30%, transparent), var(--shadow); }
+  .power.off { box-shadow:0 0 18px color-mix(in srgb, var(--red) 28%, transparent), var(--shadow); }
+  .power.off { color:var(--red); }
+  .tvname { background:transparent; box-shadow:none; display:flex; align-items:center; gap:10px; font-size:18px; font-weight:600; letter-spacing:.01em; padding:8px 10px; border-radius:999px; max-width:calc(100% - 116px); }
+  .tvname span:nth-child(2) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tvname .stack { display:flex; flex-direction:column; align-items:flex-start; min-width:0; line-height:1.15; }
+  .tvname .stack span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+  .tvname small { font-size:11.5px; font-weight:500; color:var(--muted); letter-spacing:.02em; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--faint); flex:none; transition:background .3s; }
+  .dot.on { background:var(--green); box-shadow:0 0 0 4px color-mix(in srgb, var(--green) 22%, transparent), 0 0 12px var(--green); }
+  .dot.wait { background:#e0a020; animation:blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity:.35; } }
+  .chev svg { width:18px; height:18px; stroke-width:2.6; color:var(--muted); }
+
+  /* Apps */
+  .apps { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; flex:none; }
+  .app { background:transparent; box-shadow:none; flex-direction:column; gap:7px; font-size:12.5px; color:var(--muted); letter-spacing:.01em; }
+  .app:active { background:transparent; }
+  .tile { width:100%; aspect-ratio:1; max-width:78px; border-radius:26px; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); }
+  .tile svg { width:44%; height:44%; stroke-width:2.2; }
+
+  /* Touchpad / d-pad */
+  .stage { flex:0 1 auto; height:39.6dvh; width:90%; margin:0 auto; min-height:120px; position:relative; }
+  .page { position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .2s; }
+  .page.show { opacity:1; pointer-events:auto; }
+  .touchpad { width:100%; height:100%; background:var(--pad-grad); border-radius:44px; touch-action:none; position:relative; overflow:hidden;
+    box-shadow:var(--inset), 0 0 0 1px color-mix(in srgb, var(--glow) 14%, transparent), 0 10px 40px color-mix(in srgb, var(--glow) 12%, transparent); transition:box-shadow .2s; }
+  .touchpad.touching { box-shadow:var(--inset), 0 0 0 2px color-mix(in srgb, var(--glow) 40%, transparent), 0 0 34px color-mix(in srgb, var(--glow) 30%, transparent); }
+  .touchpad .hint { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center; color:var(--muted); opacity:.75; font-size:12px; letter-spacing:.12em; pointer-events:none; text-align:center; }
+  .ripple { position:absolute; width:80px; height:80px; margin:-40px 0 0 -40px; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--glow) 45%, transparent), transparent 70%); pointer-events:none; animation:rip .4s ease-out forwards; }
+  .ripple.hold { animation:rip 1s ease-out forwards; background:color-mix(in srgb, var(--accent) 35%, transparent); }
+  @keyframes rip { from { transform:scale(.4); opacity:1; } to { transform:scale(1.7); opacity:0; } }
+  /* Arrow pad: four wedges (tap anywhere in a quarter), OK in the middle */
+  .dpad { position:relative; height:100%; aspect-ratio:1; max-width:100%; margin:0 auto; border-radius:50%; overflow:hidden; background:var(--pad-grad);
+          box-shadow:var(--inset), 0 0 0 1px color-mix(in srgb, var(--glow) 14%, transparent), 0 10px 40px color-mix(in srgb, var(--glow) 12%, transparent); }
+  .dpad .wedge { position:absolute; inset:0; width:100%; height:100%; border-radius:0; background:transparent; box-shadow:none; color:var(--muted); transform:none !important; }
+  .dpad .wedge svg { width:30px; height:30px; stroke-width:2.4; }
+  .dpad .up    { clip-path:polygon(50% 50%, 0 0, 100% 0);       align-items:flex-start; padding-top:11%; }
+  .dpad .down  { clip-path:polygon(50% 50%, 100% 100%, 0 100%); align-items:flex-end;   padding-bottom:11%; }
+  .dpad .left  { clip-path:polygon(50% 50%, 0 100%, 0 0);       justify-content:flex-start; padding-left:11%; }
+  .dpad .right { clip-path:polygon(50% 50%, 100% 0, 100% 100%); justify-content:flex-end;   padding-right:11%; }
+  .dpad .wedge:active, .dpad .wedge.pressed, .dpad .wedge.flash { background:radial-gradient(circle at 50% 50%, transparent 30%, color-mix(in srgb, var(--glow) 30%, transparent) 75%) !important; color:var(--text); box-shadow:none !important; }
+  .dpad .lines { position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(45deg, transparent calc(50% - 1px), var(--line) calc(50% - 1px), var(--line) calc(50% + 1px), transparent calc(50% + 1px)),
+               linear-gradient(-45deg, transparent calc(50% - 1px), var(--line) calc(50% - 1px), var(--line) calc(50% + 1px), transparent calc(50% + 1px)); }
+  .dpad .ring { position:absolute; left:31%; top:31%; width:38%; height:38%; border-radius:50%; background:var(--bg); pointer-events:none; }
+  .dpad .ok { position:absolute; left:33%; top:33%; width:34%; height:34%; border-radius:50%; background:var(--key-grad); color:var(--text); font-weight:700; font-size:18px; box-shadow:var(--shadow), var(--inset); z-index:2; }
+  .dpad .ok.flash, .dpad .ok.pressed { background:linear-gradient(160deg, color-mix(in srgb, var(--glow) 30%, var(--key)), color-mix(in srgb, var(--glow) 16%, var(--key))) !important;
+    box-shadow:0 0 0 2px color-mix(in srgb, var(--glow) 45%, transparent), 0 0 22px color-mix(in srgb, var(--glow) 45%, transparent) !important; }
+  .dots { display:flex; justify-content:center; gap:10px; flex:none; }
+  .dots button { width:9px; height:9px; padding:0; border-radius:999px; background:var(--faint); box-shadow:none; transition:width .2s, background .2s; }
+  .dots button.on { width:22px; background:var(--glow); box-shadow:0 0 10px color-mix(in srgb, var(--glow) 60%, transparent); }
+  .dots button:active { transform:none; }
+
+  /* Bottom controls */
+  .bottom { display:grid; grid-template-columns:69px 1fr 69px; gap:10px; flex:none; align-items:stretch; }
+  .pill { position:relative; background:var(--pad-grad); border-radius:999px; height:clamp(150px, 30dvh, 220px); overflow:hidden; display:flex; flex-direction:column; justify-content:space-between; align-items:center; box-shadow:var(--inset); }
+  .pill .fill { position:absolute; left:0; right:0; bottom:0; background:linear-gradient(to top, color-mix(in srgb, var(--glow) 75%, #1d4f8f), transparent); opacity:.8; box-shadow:0 0 30px color-mix(in srgb, var(--glow) 35%, transparent); pointer-events:none; transition:height .3s; }
+  .pill button { position:relative; width:100%; height:clamp(50px, 9dvh, 66px); background:transparent; box-shadow:none; border-radius:999px; z-index:1; }
+  .pill button:active { background:color-mix(in srgb, var(--text) 10%, transparent); }
+  .pill .lbl { position:relative; z-index:1; text-align:center; font-size:13px; font-weight:600; letter-spacing:.14em; color:var(--muted); line-height:1.6; }
+  .pill .lbl b { display:block; font-size:22px; letter-spacing:.02em; color:var(--text); }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px 6px; align-content:center; justify-items:center; }
+  .grid button { aspect-ratio:1; border-radius:50%; width:100%; max-width:min(68px, 12.5dvh); box-shadow:var(--shadow), var(--inset); }
+  .grid button svg { width:32px; height:32px; }
+
+  /* Floating type-to-TV box: sits at the top so the phone keyboard never covers it */
+  .textbar { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 76px); width:min(calc(100% - 28px), 412px); z-index:20;
+    display:flex; align-items:center; gap:8px; padding:8px; border-radius:999px;
+    background:linear-gradient(165deg, color-mix(in srgb, var(--glow) 10%, var(--sheet)), var(--sheet) 70%);
+    box-shadow:0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent), 0 0 28px color-mix(in srgb, var(--glow) 30%, transparent), 0 14px 40px rgba(0,0,0,.35);
+    opacity:0; transform:translate(-50%,-14px) scale(.97); pointer-events:none; transition:opacity .2s, transform .25s cubic-bezier(.3,.7,.4,1); }
+  .textbar.show { opacity:1; transform:translate(-50%,0) scale(1); pointer-events:auto; }
+  .textbar .kbicon { width:22px; height:22px; margin-left:10px; color:var(--glow); flex:none; }
+  .textbar input { flex:1; min-width:0; background:transparent; border:0; color:var(--text); padding:12px 4px; font:inherit; font-size:16px; user-select:text; -webkit-user-select:text; outline:none; }
+  .textbar input::placeholder { color:var(--muted); opacity:.55; }
+  .textbar .send { height:44px; padding:0 20px; border-radius:999px; font-weight:600; color:#fff; flex:none;
+    background:linear-gradient(160deg, color-mix(in srgb, var(--glow) 85%, #fff), color-mix(in srgb, var(--glow) 90%, #123)); box-shadow:0 0 16px color-mix(in srgb, var(--glow) 45%, transparent); }
+  .textbar .send.flash, .textbar .send:active { box-shadow:0 0 0 2px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 26px color-mix(in srgb, var(--glow) 70%, transparent); }
+  .textbar .enter { width:44px; height:44px; border-radius:50%; flex:none; color:#fff; padding:0;
+    background:linear-gradient(160deg, color-mix(in srgb, var(--glow) 85%, #fff), color-mix(in srgb, var(--glow) 90%, #123)); box-shadow:0 0 16px color-mix(in srgb, var(--glow) 45%, transparent); }
+  .textbar .enter svg { width:22px; height:22px; stroke-width:2.4; }
+  .textbar .send { padding:0 16px !important; }
+  .textbar { flex-wrap:wrap; }
+  .textbar .typehint { flex-basis:100%; text-align:center; font-size:11.5px; color:var(--muted); margin:-2px 0 0; padding:0 0 2px; }
+  .textbar .typehint.live { color:var(--glow); }
+  .textbar .typehint.live::before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--glow); margin-right:6px; vertical-align:1px; box-shadow:0 0 8px var(--glow); animation:blink 1.6s infinite; }
+  .textbar { border-radius:30px !important; }
+  .textbar .x { width:40px; height:40px; border-radius:50%; background:transparent; box-shadow:none; color:var(--muted); flex:none; }
+  .textbar .x svg { width:20px; height:20px; }
+
+  /* Sheets */
+  dialog { background:linear-gradient(170deg, color-mix(in srgb, var(--glow) 6%, var(--sheet)), var(--sheet) 40%); color:var(--text); border:0; border-radius:32px; padding:22px; width:min(92vw,400px); max-height:88dvh; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  dialog::backdrop { background:rgba(0,0,0,.5); backdrop-filter:blur(3px); }
+  dialog h3 { margin:2px 4px 6px; font-size:19px; } dialog p { color:var(--muted); font-size:14px; margin:4px 4px 14px; line-height:1.45; }
+  .group { background:var(--pad); border-radius:22px; padding:6px 14px; margin:10px 0; }
+  .group-title { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:16px 6px 0; }
+  .field { padding:8px 0; } .field + .field { border-top:1px solid var(--line); }
+  .field label { display:block; font-size:12px; color:var(--muted); margin:2px 2px 6px; }
+  dialog input, dialog select { width:100%; background:var(--bg); border:0; color:var(--text); border-radius:16px; padding:12px 14px; font:inherit; user-select:text; -webkit-user-select:text; outline:none; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 2px; }
+  .row + .row { border-top:1px solid var(--line); }
+  .row small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  .switch { position:relative; width:52px; height:32px; flex:none; border-radius:999px; background:var(--faint); padding:0; box-shadow:none; transition:background .2s; }
+  .switch::after { content:""; position:absolute; top:3px; left:3px; width:26px; height:26px; border-radius:50%; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,.25); transition:transform .2s; }
+  .switch.on { background:var(--green); } .switch.on::after { transform:translateX(20px); }
+  .switch:active { transform:none; }
+  .seg { display:flex; background:var(--bg); border-radius:999px; padding:3px; gap:2px; }
+  .seg button { flex:1; height:34px; border-radius:999px; background:transparent; box-shadow:none; font-size:13px; color:var(--muted); padding:0 10px; }
+  .seg button.on { background:var(--key); color:var(--text); box-shadow:var(--shadow); }
+  .code-input { text-align:center; font-size:28px !important; letter-spacing:.32em; text-transform:uppercase; }
+  .actions { display:flex; gap:10px; margin-top:14px; } .actions button { flex:1; height:50px; border-radius:999px; }
+  .primary { background:var(--accent) !important; color:#fff !important; }
+  .numgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .numgrid button { height:56px; border-radius:22px; font-size:16px; font-family:system-ui,'Segoe UI Symbol',sans-serif; }
+  .numgrid .c { width:18px; height:18px; border-radius:50%; }
+  .found { display:flex; flex-direction:column; gap:8px; padding:6px 0; }
+  .found button { height:48px; border-radius:16px; justify-content:space-between; padding:0 16px; font-size:14px; }
+  .found button small { color:var(--muted); }
+  .muted-s { color:var(--muted); font-size:13px; padding:4px 2px; }
+  .sticky { position:sticky; bottom:-22px; margin:12px -22px -22px; padding:4px 22px 18px; background:linear-gradient(to bottom, transparent, var(--sheet) 22%); }
+  .updbar { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 14px); transform:translate(-50%, 20px); width:min(calc(100% - 28px), 412px); z-index:25;
+    display:flex; align-items:center; gap:8px; padding:8px 8px 8px 18px; border-radius:999px; font-size:13.5px; font-weight:600;
+    background:linear-gradient(165deg, color-mix(in srgb, var(--glow) 14%, var(--sheet)), var(--sheet) 70%);
+    box-shadow:0 0 0 1px color-mix(in srgb, var(--glow) 40%, transparent), 0 0 26px color-mix(in srgb, var(--glow) 30%, transparent), 0 14px 40px rgba(0,0,0,.35);
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; }
+  .updbar.show { opacity:1; pointer-events:auto; transform:translate(-50%,0); }
+  .updbar span { flex:1; }
+  .updbar .primary { height:40px; padding:0 18px; border-radius:999px; }
+  .updbar .x { width:36px; height:36px; border-radius:50%; background:transparent; box-shadow:none; color:var(--muted); }
+  .updbar .x svg { width:18px; height:18px; }
+  .ver { text-align:center; font-size:11.5px; color:var(--muted); margin:14px 0 4px; }
+  .faq { display:flex; flex-direction:column; gap:8px; overflow:auto; max-height:62dvh; margin-top:10px; }
+  .faq details { background:var(--pad); border-radius:20px; padding:0 16px; }
+  .faq summary { list-style:none; cursor:pointer; padding:14px 0; font-weight:600; font-size:15px; display:flex; justify-content:space-between; gap:10px; }
+  .faq summary::-webkit-details-marker { display:none; }
+  .faq summary::after { content:"+"; color:var(--muted); font-weight:400; font-size:20px; line-height:1; transition:transform .2s; }
+  .faq details[open] summary::after { transform:rotate(45deg); }
+  .faq details p { margin:0 0 14px; font-size:14px; line-height:1.5; color:var(--muted); }
+  .toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 140px); bottom:auto; transform:translate(-50%,-10px); font-size:12.5px !important; padding:9px 15px !important; max-width:min(320px, 86vw) !important; line-height:1.35; z-index:40 !important; background:var(--sheet); color:var(--text); padding:12px 18px; border-radius:999px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:88vw; z-index:10; box-shadow:0 8px 30px rgba(0,0,0,.35); text-align:center; }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+  .toast.err { background:#3a1715; color:#ffd0cc; box-shadow:0 0 0 1px rgba(240,96,90,.5), 0 8px 30px rgba(0,0,0,.35); }
+  [data-theme="light"] .toast.err { background:#fff1f0; color:#a2241d; }
+</style>
+</head>
+<body>
+<div class="remote">
+  <header>
+    <button class="ibtn" id="settingsBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="tvname" id="tvName"><span class="dot" id="dot"></span><span class="stack"><span id="nameText">Living Room TV</span><small id="statusText">Starting…</small></span><span class="chev"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></button>
+    <button class="ibtn power" id="powerBtn" aria-label="Power"><svg viewBox="0 0 24 24" style="stroke-width:2.5"><path d="M12 3.5v7.5"/><path d="M6.6 7.2a7.5 7.5 0 1 0 10.8 0"/></svg></button>
+  </header>
+
+  <div class="apps">
+    <button class="app" data-app="youtube"><div class="tile" style="background:linear-gradient(150deg,#ff4e45,#d4141c);color:#fff"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="5"/><path d="M10 9.2v5.6l4.8-2.8z" style="fill:currentColor"/></svg></div>YouTube</button>
+    <button class="app" data-app="netflix"><div class="tile" style="background:linear-gradient(150deg,#2a2a2e,#0e0e10);color:#ff3b3b"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M3 9h18M8 4l-1.5 5M13 4l-1.5 5M18 4l-1.5 5"/></svg></div>Netflix</button>
+    <button class="app" data-app="spotify"><div class="tile" style="background:linear-gradient(150deg,#3ee07c,#169c47);color:#0b2a17"><svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5" style="fill:currentColor"/><circle cx="17.5" cy="16" r="2.5" style="fill:currentColor"/></svg></div>Spotify</button>
+    <button class="app" data-app="bilibili"><div class="tile" style="background:linear-gradient(150deg,#34c3f2,#0e8fd0);color:#fff"><svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="4.5"/><path d="M8.5 11.5v1.5M15.5 11.5v1.5"/></svg></div>Bilibili TV</button>
+  </div>
+
+  <div class="dots"><button class="on" data-page="pageTouch" aria-label="Touchpad"></button><button data-page="pageDpad" aria-label="Arrow pad"></button></div>
+  <div class="stage">
+    <div class="page show" id="pageTouch">
+      <div class="touchpad" id="touchpad"><div class="hint"><span>SWIPE TO MOVE · TAP TO SELECT</span><span style="letter-spacing:.06em;font-size:11px">HOLD FOR LONG PRESS</span></div></div>
+    </div>
+    <div class="page" id="pageDpad">
+      <div class="dpad">
+        <button class="wedge up" data-key="up" data-repeat aria-label="Up"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button class="wedge right" data-key="right" data-repeat aria-label="Right"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="wedge down" data-key="down" data-repeat aria-label="Down"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="wedge left" data-key="left" data-repeat aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="lines"></div><div class="ring"></div>
+        <button class="ok" data-key="ok" data-hold>OK</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="bottom">
+    <div class="pill">
+      <div class="fill" id="volFill" style="height:0"></div>
+      <button data-key="volup" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <div class="lbl">VOL<b id="volNum">–</b></div>
+      <button data-key="voldown" data-repeat aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    </div>
+    <div class="grid">
+      <button id="kbBtn" aria-label="Keyboard"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14.2h8"/></svg></button>
+      <button data-key="home" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M4 11.2 12 4.5l8 6.7V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M10 20v-4.5a2 2 0 0 1 4 0V20"/></svg></button>
+      <button id="numBtn" aria-label="More buttons"><svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><circle cx="6" cy="5" r="1.8"/><circle cx="12" cy="5" r="1.8"/><circle cx="18" cy="5" r="1.8"/><circle cx="6" cy="10.5" r="1.8"/><circle cx="12" cy="10.5" r="1.8"/><circle cx="18" cy="10.5" r="1.8"/><circle cx="6" cy="16" r="1.8"/><circle cx="12" cy="16" r="1.8"/><circle cx="18" cy="16" r="1.8"/><circle cx="12" cy="21" r="1.8"/></svg></button>
+      <button data-key="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M16 9.5a4 4 0 0 1 0 5M18.8 7a7.5 7.5 0 0 1 0 10"/></svg></button>
+      <button data-key="search" aria-label="Search"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
+      <button data-key="back" data-hold aria-label="Back"><svg viewBox="0 0 24 24"><path d="M8.5 5 4.5 9l4 4"/><path d="M4.5 9H15a5 5 0 0 1 0 10H9"/></svg></button>
+    </div>
+    <div class="pill">
+      <button data-key="chup" data-repeat aria-label="Channel up"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+      <div class="lbl">CH</div>
+      <button data-key="chdown" data-repeat aria-label="Channel down"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<div class="textbar" id="textbar" role="dialog" aria-label="Type to the TV">
+  <svg class="kbicon" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14.2h8"/></svg>
+  <input id="textInput" type="text" placeholder="Start typing…" autocapitalize="sentences" autocomplete="off" enterkeyhint="search">
+  <button class="enter" id="textEnter" aria-label="Enter (search)"><svg viewBox="0 0 24 24"><path d="M19 5v6a3 3 0 0 1-3 3H6"/><path d="M10 10l-4 4 4 4"/></svg></button>
+  <button class="x" id="textClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  <div class="typehint" id="typeHint">Connecting to the TV keyboard…</div>
+</div>
+
+<dialog id="numSheet">
+  <div class="numgrid">
+    <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button><button data-key="info">Info</button>
+    <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button><button data-key="guide">Guide</button>
+    <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button><button data-key="captions">CC</button>
+    <button data-key="tv">TV</button><button data-key="0">0</button><button data-key="backspace" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M8.5 5H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8.5L3 12z"/><path d="M11 9.5l5 5M16 9.5l-5 5"/></svg></button><button data-key="input">Input</button>
+    <button data-key="red"><span class="c" style="background:#f0605a"></span></button><button data-key="green"><span class="c" style="background:#34d27a"></span></button><button data-key="yellow"><span class="c" style="background:#f1c84b"></span></button><button data-key="blue"><span class="c" style="background:#4a90f0"></span></button>
+    <button data-key="prev" aria-label="prev"><svg viewBox="0 0 24 24"><path d="M6 5v14"/><path d="M19 5.5v13L9 12z" style="fill:currentColor;stroke:none"/></svg></button><button data-key="rewind" aria-label="rewind"><svg viewBox="0 0 24 24"><path d="M12 6v12l-8.5-6z" style="fill:currentColor;stroke:none"/><path d="M21 6v12l-8.5-6z" style="fill:currentColor;stroke:none"/></svg></button><button data-key="play" aria-label="play"><svg viewBox="0 0 24 24"><path d="M4 5.5v13L13 12z" style="fill:currentColor;stroke:none"/><path d="M16.5 6v12M20.5 6v12"/></svg></button><button data-key="forward" aria-label="forward"><svg viewBox="0 0 24 24"><path d="M3 6v12l8.5-6z" style="fill:currentColor;stroke:none"/><path d="M12 6v12l8.5-6z" style="fill:currentColor;stroke:none"/></svg></button>
+    <button data-key="menu">Menu</button><button data-key="settings">Settings</button><button data-key="stop" aria-label="stop"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3" style="fill:currentColor;stroke:none"/></svg></button><button data-key="next" aria-label="next"><svg viewBox="0 0 24 24"><path d="M5 5.5v13L15 12z" style="fill:currentColor;stroke:none"/><path d="M18 5v14"/></svg></button>
+  </div>
+  <div class="actions"><button onclick="this.closest('dialog').close()">Close</button></div>
+</dialog>
+
+<dialog id="setup">
+  <h3>Settings</h3>
+  <div class="group-title">TV</div>
+  <div class="group">
+    <div class="field" id="foundBox"><label>TVs found on your Wi-Fi</label><div id="foundList" class="found"><span class="muted-s">Searching…</span></div></div>
+    <div class="field"><label for="nameIn">Name</label><input id="nameIn" placeholder="Living Room TV" autocomplete="off"></div>
+    <div class="field"><label for="modeSel">Type</label>
+      <select id="modeSel"><option value="android">Google TV / Android TV</option><option value="roku">Roku TV</option><option value="mock">Demo (no TV)</option></select></div>
+    <div class="field"><label for="hostIn">IP address</label><input id="hostIn" inputmode="decimal" placeholder="192.168.1.50" autocomplete="off"></div>
+    <div class="row" id="repairRow" style="cursor:pointer"><div>Pair again<small>Use if the TV stopped responding to this phone</small></div><svg viewBox="0 0 24 24" style="width:20px;height:20px;color:var(--muted)"><path d="M9 6l6 6-6 6"/></svg></div>
+  </div>
+  <div class="group-title">Remote</div>
+  <div class="group">
+    <div class="row"><div>Vibrate on touch<small>Buttons and swipes</small></div><button class="switch" id="hapticSw" aria-label="Vibrate on touch"></button></div>
+    <div class="row"><div>Theme</div><div class="seg" id="themeSeg"><button data-v="system">Auto</button><button data-v="dark">Dark</button><button data-v="light">Light</button></div></div>
+    <div class="row"><div>Wake TV when app opens<small>Turns the TV on when you open the remote</small></div><button class="switch" id="wakeSw" aria-label="Wake TV when app opens"></button></div>
+    <div class="field"><label for="macIn">TV Wi-Fi MAC address (optional)<br>Lets the remote wake the TV from deep standby. Find it in the TV's Settings › Network › About.</label><input id="macIn" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off" autocapitalize="characters"></div>
+  </div>
+  <div class="group-title">Help</div>
+  <div class="group"><div class="row" id="helpRow" style="cursor:pointer"><div>Help &amp; FAQ<small>Setup, pairing, wake, widget, troubleshooting</small></div><svg viewBox="0 0 24 24" style="width:20px;height:20px;color:var(--muted)"><path d="M9 6l6 6-6 6"/></svg></div></div>
+  <div class="ver" id="verLine"></div>
+  <div class="sticky">
+    <div class="actions"><button id="closeSetup">Close</button><button id="saveBtn" class="primary">Save</button></div>
+  </div>
+</dialog>
+
+<dialog id="helpDlg">
+  <h3>Help &amp; FAQ</h3>
+  <div class="faq">
+    <details><summary>How do I connect for the first time?</summary><p>Put the phone on the same Wi-Fi as the TV and turn the TV on. Open ⚙, tap your TV in "TVs found on your Wi-Fi" (or type its IP from the TV's Settings › Network), then Save. A 6-character code appears on the TV. Type it into the phone. You only do this once.</p></details>
+    <details><summary>The TV isn't found in the list</summary><p>Make sure the TV is on, not in standby, and both are on the same Wi-Fi (not a guest network). You can always type the TV's IP address instead. In your router, give the TV a fixed IP so it never changes.</p></details>
+    <details><summary>It says "Not connected"</summary><p>Check the TV is on and both devices share the Wi-Fi. Turn the phone's mobile data off if the Wi-Fi has no internet. If it keeps failing, open ⚙ and tap Re-pair.</p></details>
+    <details><summary>The TV asks for a code again</summary><p>That happens if the TV was reset or its paired devices were cleared. Just type the new code shown on the TV.</p></details>
+    <details><summary>How does the touchpad work?</summary><p>Swipe to move, tap to select, and hold still for a long press (opens extra menus in many apps). The second dot under the touchpad switches to a classic arrow pad. OK and Back also support long press.</p></details>
+    <details><summary>How do I turn the TV on?</summary><p>Tap the power button. If "Wake TV when app opens" is on, opening the remote turns the TV on. If the TV is in deep standby, add its Wi-Fi MAC address in ⚙ (TV Settings › Network › About) so the remote can wake it. The TV's network standby setting must be on.</p></details>
+    <details><summary>Can I use the phone's volume buttons?</summary><p>Yes. While the remote is open and connected, the phone's volume buttons change the TV's volume.</p></details>
+    <details><summary>How do I add the home screen widget?</summary><p>Long-press an empty spot on your home screen, tap Widgets, find EK's Remote, and drag it out. It has power, volume down, mute and volume up. Pair in the app first.</p></details>
+    <details><summary>How do I type or search?</summary><p>Select a search box on the TV, then tap the keyboard button. Whatever you type appears on the TV straight away (capitals, symbols, corrections and all), and what's already in the TV's box shows in yours. Tap ↵ or your keyboard's search key to run the search. Close the box (✕ or Back) to get the TV's own keyboard back. The mic button opens the TV's search screen; voice input itself isn't supported.</p></details>
+    <details><summary>The TV says to use the keyboard on my phone</summary><p>That's normal while the type box is open: the TV hands its keyboard to your phone. Close the type box and the TV's own keyboard comes back.</p></details>
+    <details><summary>How do updates work?</summary><p>Changes to how the remote looks arrive by themselves the next time you open the app. When a new app version is out, a banner offers "Update": tap it and confirm Android's install screen. Your pairing and settings stay.</p></details>
+    <details><summary>An app button opens the wrong thing</summary><p>App buttons ask the TV to open that service's link. If the app isn't installed on the TV, or doesn't accept links, nothing happens or a browser opens. Install the app on the TV first.</p></details>
+    <details><summary>How do I turn off vibration or change the theme?</summary><p>Open ⚙ › Remote. Vibrate on touch, and Theme (Auto, Dark or Light) are there.</p></details>
+  </div>
+  <div class="actions"><button onclick="this.closest('dialog').close()">Close</button></div>
+</dialog>
+
+<dialog id="confirmDlg">
+  <h3>Pair again?</h3>
+  <p>A new code will appear on the TV. Use this if the TV stopped responding to this phone.</p>
+  <div class="actions"><button id="confirmNo">Cancel</button><button id="confirmYes" class="primary">Pair again</button></div>
+</dialog>
+
+<dialog id="pairDlg">
+  <h3>Enter pairing code</h3>
+  <p>A 6-character code is showing on your TV. Type it here.</p>
+  <input id="codeIn" class="code-input" maxlength="6" autocomplete="off" autocapitalize="characters">
+  <div class="actions"><button id="pairCancel">Cancel</button><button id="pairBtn" class="primary">Pair</button></div>
+  <p style="text-align:center;margin:14px 0 0">Code not showing? <a href="#" id="pairRetry" style="color:var(--glow);font-weight:600">Retry</a></p>
+</dialog>
+
+<div class="updbar" id="updBar"><span id="updText">Update available</span><button id="updGo" class="primary">Update</button><button class="x" id="updX" aria-label="Later"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = window.AndroidBridge
+  ? (path, body) => Promise.resolve(JSON.parse(AndroidBridge.call(path, body === undefined ? '' : JSON.stringify(body))))
+  : (path, body) => fetch('/api/' + path, body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }).then(r => r.json());
+const store = { get:(k,d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } }, set:(k,v) => { try { localStorage.setItem(k,v); } catch {} } };
+let toastTimer;
+let lastToast = '', lastToastAt = 0;
+const bootAt = Date.now();
+function toast(msg, isErr) {
+  if (msg === lastToast && Date.now() - lastToastAt < 2500) return; // holding a button won't spam the same message
+  if (isErr && Date.now() - bootAt < 3000 && /connect/i.test(msg)) return; // normal while starting up
+  lastToast = msg; lastToastAt = Date.now();
+  const t = $('#toast'); const host = [...document.querySelectorAll('dialog[open]')].pop() || document.body; if (t.parentNode !== host) host.appendChild(t);
+  if (host === document.body) { const st = $('.stage').getBoundingClientRect(); const tb = $('#textbar').classList.contains('show') ? $('#textbar').getBoundingClientRect().bottom + 10 : 0; t.style.top = Math.max(st.top + 14, tb) + 'px'; }
+  else t.style.top = '';
+  t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000); }
+
+// ---- Vibration (setting lives behind the gear) ----
+let haptics = store.get('haptics', 'on') === 'on';
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button, .row[id]'); if (!b || b.classList.contains('switch') || b.closest('.seg') || b.closest('.dots')) return;
+  b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); clearTimeout(b._ft); b._ft = setTimeout(() => b.classList.remove('flash'), 260);
+}, true);
+const buzz = () => { if (!haptics) return; window.AndroidBridge ? AndroidBridge.haptic() : (navigator.vibrate && navigator.vibrate(12)); };
+
+// ---- Theme ----
+let theme = store.get('theme', 'system');
+const mq = matchMedia('(prefers-color-scheme: light)');
+let phoneNight = null; // from the app; null = unknown (desktop preview)
+function applyTheme() {
+  const auto = phoneNight === null ? (mq.matches ? 'light' : 'dark') : (phoneNight ? 'dark' : 'light');
+  const t = theme === 'system' ? auto : theme;
+  if (document.documentElement.dataset.theme === t && applyTheme.done) { document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === theme)); return; }
+  applyTheme.done = true;
+  document.documentElement.dataset.theme = t;
+  if (window.AndroidBridge) api('theme', { light: t === 'light' });
+  document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === theme));
+}
+mq.addEventListener('change', applyTheme); applyTheme();
+
+async function press(key, dir) { buzz(); const r = await api('key', dir ? { key, dir } : { key }); if (!r.ok) toast(r.error, true); }
+
+// Tap, hold-to-repeat (arrows, volume, channel) or long press (OK, Back)
+document.querySelectorAll('[data-key]').forEach(btn => {
+  const key = btn.dataset.key;
+  if (btn.hasAttribute('data-repeat')) {
+    let delay, iv;
+    const stop = () => { clearTimeout(delay); clearInterval(iv); btn.classList.remove('pressed'); };
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.classList.add('pressed'); press(key); delay = setTimeout(() => { iv = setInterval(() => press(key), 140); }, 400); });
+    ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+  } else if (btn.hasAttribute('data-hold')) {
+    let timer, long = false, down = false;
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); down = true; long = false; btn.classList.add('pressed');
+      timer = setTimeout(() => { long = true; press(key, 'start'); }, 500); });
+    const up = e => { if (!down) return; down = false; clearTimeout(timer); btn.classList.remove('pressed');
+      if (long) api('key', { key, dir:'end' }); else if (e.type === 'pointerup') press(key); };
+    ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, up));
+  } else btn.addEventListener('click', () => press(key));
+});
+document.querySelectorAll('[data-app]').forEach(b => b.addEventListener('click', async () => { buzz(); const r = await api('app', { app:b.dataset.app }); if (!r.ok) toast(r.error, true); }));
+$('#powerBtn').addEventListener('click', async () => { buzz(); const r = await api('power', {}); if (!r.ok) toast(r.error, true); else if (r.message) toast(r.message); });
+
+// Touchpad: swipe = arrows, tap = OK, hold still = long-press OK
+(function () {
+  const pad = $('#touchpad'); let sx, sy, lx, ly, moved, id, holdTimer, held;
+  const STEP = 38;
+  function ripple(x, y, hold) { const r = document.createElement('div'); r.className = 'ripple' + (hold ? ' hold' : ''); r.style.left = x + 'px'; r.style.top = y + 'px'; pad.appendChild(r); setTimeout(() => r.remove(), 1000); }
+  let t0 = 0;
+  pad.addEventListener('pointerdown', e => {
+    if (!e.isPrimary || id != null) return; // ignore a second finger
+    t0 = Date.now();
+    id = e.pointerId; pad.setPointerCapture(id); const b = pad.getBoundingClientRect();
+    pad.classList.add('touching'); sx = lx = e.clientX; sy = ly = e.clientY; moved = false; held = false; ripple(e.clientX - b.left, e.clientY - b.top);
+    holdTimer = setTimeout(() => { if (!moved) { held = true; ripple(sx - b.left, sy - b.top, true); press('ok', 'start'); } }, 650);
+  });
+  pad.addEventListener('pointermove', e => {
+    if (e.pointerId !== id || held) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    if (Math.abs(dx) < STEP && Math.abs(dy) < STEP) return;
+    moved = true; clearTimeout(holdTimer);
+    press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    lx = e.clientX; ly = e.clientY;
+  });
+  const end = e => { if (e.pointerId !== id) return; id = null; clearTimeout(holdTimer); pad.classList.remove('touching');
+    if (held) { api('key', { key:'ok', dir:'end' }); return; }
+    // a quick touch that never became a swipe counts as a tap, even if the finger drifted a little
+    if (!moved && e.type === 'pointerup' && (Math.hypot(e.clientX - sx, e.clientY - sy) < 10 || Date.now() - t0 < 350)) press('ok'); };
+  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end);
+})();
+
+document.querySelectorAll('.dots button').forEach(d => d.addEventListener('click', () => {
+  buzz();
+  document.querySelectorAll('.dots button').forEach(x => x.classList.toggle('on', x === d));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('show', p.id === d.dataset.page));
+}));
+
+$('#numBtn').addEventListener('click', () => { buzz(); $('#numSheet').showModal(); });
+let typeOpenAt = 0, lastInputAt = 0, lastTypeSync = 0, wasLinked = false;
+function openText() {
+  $('#textbar').classList.add('show'); typeOpenAt = lastTypeSync = Date.now(); wasLinked = false;
+  $('#textInput').value = '';
+  setHint('Connecting to the TV keyboard…', false);
+  api('typeOpen', { open:true });
+  setTimeout(() => $('#textInput').focus(), 60);
+}
+function closeText() {
+  if (!$('#textbar').classList.contains('show')) return;
+  $('#textbar').classList.remove('show'); $('#textInput').blur();
+  api('typeOpen', { open:false }); // gives the TV its own on-screen keyboard back
+}
+function setHint(text, live) { const h = $('#typeHint'); h.textContent = text; h.classList.toggle('live', !!live); }
+$('#kbBtn').addEventListener('click', () => { buzz(); $('#textbar').classList.contains('show') ? closeText() : openText(); });
+$('#textClose').addEventListener('click', () => { buzz(); closeText(); });
+// every keystroke (and autocorrect, swipe typing, paste) goes to the TV right away
+$('#textInput').addEventListener('input', async () => {
+  lastInputAt = Date.now();
+  const r = await api('type', { text:$('#textInput').value });
+  if (!r.ok) toast(r.error, true);
+});
+async function pressEnter() {
+  buzz();
+  const r = await api('enter', {}); // the app waits for the text to land on the TV first
+  if (!r.ok) return toast(r.error, true);
+  setTimeout(closeText, 250);
+}
+$('#textEnter').addEventListener('click', pressEnter);
+$('#textInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pressEnter(); } if (e.key === 'Escape') closeText(); });
+// called by the status poll: show what the TV's search box holds, and the link state
+function syncTypeBox(s) {
+  if (!$('#textbar').classList.contains('show')) return;
+  const box = $('#textInput');
+  if (s.textField) {
+    setHint('Live · ' + (s.fieldLabel ? s.fieldLabel.replace(/…$/, '') : 'typing goes straight to the TV'), true);
+    // mirror the TV box when the user isn't mid-typing (e.g. on first link, or text changed on the TV)
+    if (typeof s.tvText === 'string' && s.tvText !== box.value && Date.now() - lastInputAt > 900) box.value = s.tvText;
+    wasLinked = true;
+  } else if (s.status !== 'connected' || Date.now() - typeOpenAt < 2500) {
+    setHint('Connecting to the TV keyboard…', false);
+  } else {
+    setHint('Select a search box on the TV first (letters still go through)', false);
+  }
+  // after the app was paused, ask again for the keyboard link
+  if (!s.textField && s.status === 'connected' && Date.now() - lastTypeSync > 3000) { lastTypeSync = Date.now(); api('typeOpen', { open:true }); }
+}
+
+// ---- Settings ----
+const setup = $('#setup'), pairDlg = $('#pairDlg');
+const savedName = () => store.get('tvName', 'Living Room TV');
+$('#nameText').textContent = savedName();
+const sw = (el, on) => el.classList.toggle('on', on);
+$('#hapticSw').addEventListener('click', () => { haptics = !haptics; store.set('haptics', haptics ? 'on' : 'off'); sw($('#hapticSw'), haptics); buzz(); });
+$('#wakeSw').addEventListener('click', () => sw($('#wakeSw'), !$('#wakeSw').classList.contains('on')));
+document.querySelectorAll('#themeSeg button').forEach(b => b.addEventListener('click', () => { theme = b.dataset.v; store.set('theme', theme); applyTheme(); }));
+$('#settingsBtn').addEventListener('click', openSetup);
+let updDismissed = false;
+$('#updX').addEventListener('click', () => { buzz(); updDismissed = true; $('#updBar').classList.remove('show'); });
+$('#updGo').addEventListener('click', async () => { buzz(); const r = await api('installUpdate', {}); if (!r.ok) toast(r.error, true); else if (r.message) toast(r.message); });
+function syncUpdate(s) {
+  const show = !!s.update && !updDismissed && !setup.open;
+  if (show) $('#updText').textContent = s.updateState === 'downloading' ? 'Downloading update…' : s.updateState === 'error' ? 'Update failed – try again' : 'Update available · v' + s.update.versionName;
+  $('#updBar').classList.toggle('show', show);
+  const v = $('#verLine'); if (v && s.appVersion) v.textContent = "EK's Remote · app build " + s.appVersion + ' · screen ' + (s.uiVersion || 'built-in') + (s.uiSource === 'online' ? ' (online)' : '');
+}
+$('#helpRow').addEventListener('click', () => { buzz(); $('#helpDlg').showModal(); });
+let needsPair = false;
+$('#tvName').addEventListener('click', async () => {
+  if (needsPair) { buzz(); await api('forget', {}); toast('Starting pairing… watch the TV for a code'); return; }
+  openSetup();
+});
+$('#closeSetup').addEventListener('click', () => setup.close());
+$('#modeSel').addEventListener('change', () => { $('#hostIn').disabled = $('#modeSel').value === 'mock'; });
+
+function renderFound(s) {
+  const box = $('#foundList');
+  $('#foundBox').style.display = (s.mode === 'android' && window.AndroidBridge) ? '' : 'none';
+  if (!s.found || !s.found.length) { box.dataset.key = ''; box.innerHTML = '<span class="muted-s">' + (s.scanning ? 'Searching… (the TV must be on)' : 'None found. Type the IP below.') + '</span>'; return; }
+  const key = JSON.stringify(s.found); if (box.dataset.key === key) return; box.dataset.key = key; box.innerHTML = '';
+  s.found.forEach(t => { const b = document.createElement('button'); b.textContent = t.name; const sm = document.createElement('small'); sm.textContent = t.host; b.appendChild(sm);
+    b.addEventListener('click', async () => { buzz(); $('#hostIn').value = t.host; $('#modeSel').value = 'android';
+      if (!store.get('tvName', '')) $('#nameIn').value = t.name;
+      $('#saveBtn').click(); }); box.appendChild(b); });
+}
+async function openSetup() {
+  buzz();
+  if (window.AndroidBridge) api('scan', {});
+  const s = await api('state'); renderFound(s);
+  $('#nameIn').value = savedName(); $('#modeSel').value = s.mode; $('#hostIn').value = s.host || ''; $('#hostIn').disabled = s.mode === 'mock';
+  $('#macIn').value = s.mac || ''; sw($('#wakeSw'), s.wakeOnOpen !== false); sw($('#hapticSw'), haptics); applyTheme();
+  setup.showModal();
+}
+$('#saveBtn').addEventListener('click', async () => {
+  const name = $('#nameIn').value.trim() || 'Living Room TV';
+  store.set('tvName', name); $('#nameText').textContent = name;
+  const r = await api('config', { mode:$('#modeSel').value, host:$('#hostIn').value.trim(), mac:$('#macIn').value.trim(), wakeOnOpen:$('#wakeSw').classList.contains('on') });
+  if (!r.ok) return toast(r.error, true);
+  setup.close();
+});
+$('#repairRow').addEventListener('click', () => { buzz(); $('#confirmDlg').showModal(); });
+$('#confirmNo').addEventListener('click', () => $('#confirmDlg').close());
+$('#confirmYes').addEventListener('click', async () => { $('#confirmDlg').close(); setup.close(); await api('forget', {}); toast('Starting pairing… watch the TV for a code'); });
+$('#pairBtn').addEventListener('click', async () => { const r = await api('pair', { code:$('#codeIn').value }); if (!r.ok) return toast(r.error, true); pairDlg.close(); $('#codeIn').value = ''; });
+$('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#pairBtn').click(); });
+let pairDismissed = false;
+function cancelPairing() { pairDismissed = true; api('cancelPair', {}); pairDlg.close(); $('#codeIn').value = ''; }
+$('#pairCancel').addEventListener('click', () => { buzz(); cancelPairing(); });
+pairDlg.addEventListener('cancel', e => { e.preventDefault(); cancelPairing(); });
+$('#pairRetry').addEventListener('click', e => { e.preventDefault(); buzz(); pairDismissed = false; pairDlg.close(); api('reconnect', {}); toast('Asking the TV for a new code…'); });
+
+// Phone Back button: close whatever is on top first (called from the app)
+window.closeTopSheet = () => {
+  const open = [...document.querySelectorAll('dialog[open]')].pop();
+  if (open === pairDlg) { cancelPairing(); return true; }
+  if (open) { open.close(); return true; }
+  if ($('#textbar').classList.contains('show')) { closeText(); return true; }
+  return false;
+};
+
+// ---- Status ----
+let lastErr = null;
+function statusWords(s) {
+  if (s.mode === 'mock') return 'Demo mode';
+  if (!s.host) return 'Tap to set up';
+  switch (s.status) {
+    case 'connected': return s.powered === false ? 'TV is off' : 'Connected';
+    case 'connecting': return s.error ? 'TV not reachable' : 'Connecting…';
+    case 'pairing': return 'Pairing…';
+    case 'awaiting_code': return 'Enter the code on the TV';
+    default: return s.paired ? 'Not connected' : 'Pair needed – tap to pair';
+  }
+}
+async function poll() {
+  try {
+    const s = await api('state');
+    $('#dot').className = 'dot' + (s.status === 'connected' ? ' on' : (s.status === 'disconnected' ? '' : ' wait'));
+    $('#statusText').textContent = statusWords(s);
+    needsPair = !!s.host && s.mode === 'android' && !s.paired && s.status === 'disconnected';
+    $('#statusText').style.color = needsPair ? 'var(--glow)' : '';
+    if (typeof s.night === 'boolean' && s.night !== phoneNight) { phoneNight = s.night; applyTheme(); }
+    if (s.status !== 'awaiting_code') pairDismissed = false;
+    $('#powerBtn').classList.toggle('off', s.powered === false);
+    if (s.volume) { $('#volNum').textContent = s.volume.muted ? 'Mute' : s.volume.level; $('#volFill').style.height = Math.round(100 * s.volume.level / (s.volume.maximum || 100)) + '%'; }
+    if (setup.open) renderFound(s);
+    syncTypeBox(s);
+    syncUpdate(s);
+    if (s.status === 'awaiting_code' && !pairDlg.open && !setup.open && !pairDismissed) { pairDlg.showModal(); $('#codeIn').focus(); }
+    if (s.status !== 'awaiting_code' && pairDlg.open) pairDlg.close();
+    if (s.error && s.error !== lastErr) toast(s.error, true);
+    lastErr = s.error;
+    if (s.status === 'disconnected' && !s.host && s.mode !== 'mock' && !setup.open && !sessionStorage.getItem('setupShown')) { sessionStorage.setItem('setupShown', '1'); openSetup(); }
+  } catch { $('#dot').className = 'dot'; }
+}
+poll(); (function tick() { setTimeout(() => { poll(); tick(); }, $('#textbar').classList.contains('show') ? 350 : 1000); })();
+</script>
+</body>
+</html>
